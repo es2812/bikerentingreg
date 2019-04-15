@@ -30,7 +30,7 @@ val parsedData = parsed.filter(x=>{!(x.contains(headers(0)))});
 val dataRDD = parsedData.map(a=>(a(2).toDouble, a(3).toDouble, a(4).toDouble, a(5).toDouble, a(6).toDouble, a(7).toDouble, a(8).toDouble, a(9).toDouble, a(10).toDouble, a(11).toDouble, a(12).toDouble, a(15).toDouble))
 val newHeaders = headers.drop(2).dropRight(3) ++ Array("cnt"); //actualizamos la cabecera
 
-val dataDF = dataRDD.toDF(newHeaders: _*); //convertimos a un DF desernollando el array newHeaders en varias strings
+val dataDF = dataRDD.toDF(newHeaders: _*); //convertimos a un DF desenrollando el array newHeaders en varias strings
 
 /* 
  *  Añadimos interacciones
@@ -55,7 +55,6 @@ val ohe = new OneHotEncoderEstimator().setInputCols(headersCategoricos).setOutpu
 //val oheModel = ohe.fit(dataFull) //con pipeline no hacemos fit aun
 //val data = oheModel.transform(dataFull)
 
-
 /*
  *        DataFrame a features, label
  */
@@ -65,7 +64,6 @@ import org.apache.spark.ml.feature.VectorAssembler
 val featuresCols = outputOhe++newHeaders.diff(headersCategoricos).diff(Array("cnt")).diff(eliminadas)++Array("atemp*hum*wind") //las variables categoricas entrarán con _ohe
 
 val va = new VectorAssembler().setInputCols(featuresCols).setOutputCol("features")
-//val df = va.transform(data).select("features","cnt")
 
 
 /*  
@@ -78,9 +76,8 @@ val lr = new LinearRegression()
 lr.setSolver("l-bfgs")
 lr.setFitIntercept(true)
 lr.setLabelCol("cnt")
-
-//val lm = lr.fit(df)
-//val sum = lm.summary
+lr.setRegParam(1.0)
+lr.setElasticNetParam(1.0)
 
 /*
  *    Pipeline y Cross Validation
@@ -95,6 +92,7 @@ val stages = Array(ohe,va,lr)
 
 val pipe = new Pipeline().setStages(stages)
 
+/*
 val params = new ParamGridBuilder().addGrid(lr.regParam,Array(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0)).addGrid(lr.elasticNetParam,Array(0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1)).build()
 val SEED = 123456
 val cv = new CrossValidator().setEstimatorParamMaps(params).setEvaluator(eval).setEstimator(pipe).setNumFolds(3).setSeed(SEED)
@@ -105,6 +103,9 @@ import org.apache.spark.ml.PipelineModel
 import org.apache.spark.ml.regression.LinearRegressionModel
 
 val bestPipe = cvModel.bestModel.asInstanceOf[PipelineModel]
+*/
+
+val bestPipe = pipe.fit(dataFull)
 val lm = bestPipe.stages.last.asInstanceOf[LinearRegressionModel]
 val sum = lm.summary
 
