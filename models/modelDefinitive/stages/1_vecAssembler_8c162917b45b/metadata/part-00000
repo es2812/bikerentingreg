@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.VectorAssembler","timestamp":1555779942156,"sparkVersion":"2.4.0","uid":"vecAssembler_8c162917b45b","paramMap":{"inputCols":["yr_ohe","mnth_ohe","weekday_ohe","weathersit_ohe","temp","hum","windspeed"],"outputCol":"features"},"defaultParamMap":{"handleInvalid":"error","outputCol":"vecAssembler_8c162917b45b__output"}}
