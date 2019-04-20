@@ -3,8 +3,8 @@
  *                  Esther Cuervo Fernández
  *
  *   Este script ejecuta los experimentos de validación cruzada para hallar
- *   los valores óptimos para regParam y elasticNetParam para cuatro modelos
- *   de regresión lineal distintos utilizando el dataset day.csv de Bikerenting.
+ *   los valores óptimos para regParam y elasticNetParam para modelos
+ *   de regresión lineal utilizando el dataset day.csv de Bikerenting.
  *
  *   Almacena el mejor modelo de cada tipo como un PipelineModel.
  *
@@ -40,15 +40,13 @@ val newHeaders = headers.drop(2).dropRight(3) ++ Array("cnt"); //actualizamos la
 val dataDF = dataRDD.toDF(newHeaders: _*); //convertimos a un DF desenrollando el array newHeaders en varias strings
 
 /* 
- *  Añadimos interacciones
+ *  Añadimos interacciones al dataframe
  */
 
 val data = dataDF.withColumn("th",$"temp"*$"hum").withColumn("tw",$"temp"*$"windspeed").withColumn("hw",$"hum"*$"windspeed").withColumn("thw",$"temp"*$"hum"*$"windspeed")
 
 /*
  *        Selección de variables:
- *          - Modelo 1: incluimos todas las variables
- *          - Modelo 2: eliminamos las variables "temp" "weekday" "holiday" y "season"
  */
 
 val eliminadas = Array("season","atemp","holiday","workingday")
@@ -70,10 +68,9 @@ val ohe = new OneHotEncoderEstimator().setInputCols(headersCategoricos).setOutpu
 import org.apache.spark.ml.feature.VectorAssembler
 
 val featuresCols1 = outputOhe++newHeaders.diff(headersCategoricos).diff(Array("cnt")).diff(eliminadas)//las variables categoricas entrarán con _ohe
-val featuresCols2 = featuresCols1++Array("th","tw","hw")
+val featuresCols = featuresCols1++Array("th","tw","hw")//añadimos interacciones al modelo
 
-val va1 = new VectorAssembler().setInputCols(featuresCols1).setOutputCol("features")
-val va2 = new VectorAssembler().setInputCols(featuresCols2).setOutputCol("features")
+val va = new VectorAssembler().setInputCols(featuresCols).setOutputCol("features")
 
 /*  
  *        Creamos el modelo
@@ -95,77 +92,29 @@ import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.Pipeline
 
 val eval = new RegressionEvaluator().setMetricName("r2").setLabelCol("cnt")
-val stages1 = Array(ohe,va1,lr)
-val stages2 = Array(ohe,va2,lr)
+val stages = Array(ohe,va,lr)
 
-val pipe1 = new Pipeline().setStages(stages1)
-val pipe2 = new Pipeline().setStages(stages2)
+val pipe = new Pipeline().setStages(stages)
 
 val params = new ParamGridBuilder().addGrid(lr.regParam,Array(0,0.2,0.4,0.6,0.8,1.0)).addGrid(lr.elasticNetParam,Array(0,0.2,0.4,0.6,0.8,1)).build()
 
 val SEED = 123456
-val cv1 = new CrossValidator().setEstimatorParamMaps(params).setEvaluator(eval).setEstimator(pipe1).setNumFolds(2).setSeed(SEED)
-val cv2 = new CrossValidator().setEstimatorParamMaps(params).setEvaluator(eval).setEstimator(pipe2).setNumFolds(2).setSeed(SEED)
+val cv = new CrossValidator().setEstimatorParamMaps(params).setEvaluator(eval).setEstimator(pipe).setNumFolds(2).setSeed(SEED)
 
 /*
- *            Modelo 1
+ *            Modelo
  */
 
-//val cvModel1 = cv1.fit(data)
+val cvModel = cv.fit(data)
 
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.ml.regression.LinearRegressionModel
 
-//val bestPipe = cvModel1.bestModel.asInstanceOf[PipelineModel]
-
-//val lm = bestPipe.stages.last.asInstanceOf[LinearRegressionModel]
-//val sum = lm.summary
-
-//println(s"MODELO 1")
-//println(s"----------------------")
-//println(s"RegParam: ${lm.getRegParam}")
-//println(s"ElasticNetParam: ${lm.getElasticNetParam}")
-
-//println(s"Intercept: ${lm.intercept}")
-//println(s"Coeficientes:")
-//for(i <- 0 until lm.coefficients.size){
-//  println(s"[${i}] ${lm.coefficients(i)}")
-//}
-
-//println(s"MSE: ${sum.meanSquaredError}")
-//println(s"RMSE: ${sum.rootMeanSquaredError}")
-//println(s"R2: ${sum.r2}")
-//println(s"R2 ajustado: ${sum.r2adj}")
-
-/*
- *  Generamos y guardamos el dataset predichos v. observados
- */
-
-//val predObs = bestPipe.transform(data).select($"cnt",$"prediction",$"cnt"-$"prediction")
-//predObs.write.csv("./residuals/residualsDefinitive")
-
-/*  
- *  Guardamos el mejor modelo encontrado
- */
-
-//bestPipe.write.save("./models/modelDefinitive")
-
-/*
- *            Modelo 2
- */
-
-val cvModel2 = cv2.fit(data)
-
-import org.apache.spark.ml.PipelineModel
-import org.apache.spark.ml.regression.LinearRegressionModel
-
-val bestPipe = cvModel2.bestModel.asInstanceOf[PipelineModel]
+val bestPipe = cvModel.bestModel.asInstanceOf[PipelineModel]
 
 val lm = bestPipe.stages.last.asInstanceOf[LinearRegressionModel]
 val sum = lm.summary
 
-println(s"MODELO 2")
-println(s"----------------------")
 println(s"RegParam: ${lm.getRegParam}")
 println(s"ElasticNetParam: ${lm.getElasticNetParam}")
 
@@ -185,11 +134,10 @@ println(s"R2 ajustado: ${sum.r2adj}")
  */
 
 val predObs = bestPipe.transform(data).select($"cnt",$"prediction",$"cnt"-$"prediction")
-predObs.write.csv("./residuals2/residualsDefinitive")
+predObs.write.csv("./residualsDefinitive")
 
 /*  
  *  Guardamos el mejor modelo encontrado
  */
 
-bestPipe.write.save("./models2/modelDefinitive")
-
+bestPipe.write.save("./modelDefinitive")
