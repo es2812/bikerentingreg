@@ -1,1 +1,0 @@
-{"class":"org.apache.spark.ml.feature.OneHotEncoderModel","timestamp":1555761310608,"sparkVersion":"2.4.0","uid":"oneHotEncoder_3acb99a0ed32","paramMap":{"inputCols":["yr","mnth","workingday","weathersit"],"outputCols":["yr_ohe","mnth_ohe","workingday_ohe","weathersit_ohe"]},"defaultParamMap":{"handleInvalid":"error","dropLast":true}}
